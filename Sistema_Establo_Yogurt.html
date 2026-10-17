@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema del Establo del Yogurt</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div class="logo-circle">🥛</div>
+      <h1>Sistema del Establo del Yogurt</h1>
+      <p class="sub">Gestión de productos, ventas y stock</p>
+
+      <div class="error-msg" id="loginError">Usuario o contraseña incorrectos.</div>
+
+      <div class="field">
+        <label>Usuario</label>
+        <input type="text" id="loginUser" placeholder="admin / vendedor" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" onclick="intentarLogin()">Ingresar al sistema</button>
+
+      <div class="hint">
+        <b>Usuarios de prueba:</b><br>
+        Administrador → usuario: <b>admin</b> / clave: <b>admin123</b><br>
+        Vendedor → usuario: <b>vendedor</b> / clave: <b>venta123</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div id="appScreen">
+    <header class="topbar">
+      <div class="brand">
+        <div class="ico">🥛</div>
+        <div>
+          <h2>Establo del Yogurt</h2>
+          <span>Sistema de gestión</span>
+        </div>
+      </div>
+      <div class="userbox">
+        <span id="userNameLabel">Usuario</span>
+        <span class="role-badge" id="userRoleLabel">Rol</span>
+        <button class="btn btn-outline small-btn" onclick="cerrarSesion()">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebarNav">
+        <button data-page="dashboard" onclick="irPagina('dashboard')">📊 Panel general</button>
+        <button data-page="venta" onclick="irPagina('venta')">🧾 Nueva venta</button>
+        <button data-page="productos" onclick="irPagina('productos')">🍦 Productos</button>
+        <button data-page="produccion" onclick="irPagina('produccion')">🏭 Producción</button>
+        <button data-page="clientes" onclick="irPagina('clientes')">👤 Clientes</button>
+        <button data-page="ventas" onclick="irPagina('ventas')">📜 Historial de ventas</button>
+        <button data-page="usuarios" id="navUsuarios" onclick="irPagina('usuarios')">🔐 Usuarios</button>
+      </nav>
+
+      <main class="content">
+
+        <!-- DASHBOARD -->
+        <div class="page" id="page-dashboard">
+          <div class="page-title">Panel general</div>
+          <div class="page-desc">Resumen del establo de yogurt</div>
+          <div class="grid3" id="statsGrid"></div>
+          <div class="card">
+            <h3 style="margin-top:0;color:var(--primary);">Productos con stock bajo</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Stock</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="lowStockBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VENTA (sigue el diagrama de actividad) -->
+        <div class="page" id="page-venta">
+          <div class="page-title">Registrar nueva venta</div>
+          <div class="page-desc">Flujo: producto → stock → pago → comprobante</div>
+
+          <!-- Paso 1: producto y cantidad -->
+          <div class="step-box active" id="venta-step-1">
+            <div class="card">
+              <h3 style="margin-top:0;color:var(--primary);">1. Buscar producto</h3>
+              <input type="text" id="buscarProducto" placeholder="Buscar producto..." oninput="renderProductPicker()"
+                style="width:100%;padding:10px 12px;border-radius:9px;border:1.5px solid var(--border);margin-bottom:14px;">
+              <div id="productPickerList"></div>
+
+              <div id="stockBanner" class="stock-banner">⚠ Stock insuficiente para este producto.</div>
+
+              <div id="cantidadBox" style="display:none;margin-top:16px;">
+                <div class="grid2">
+                  <div class="field">
+                    <label>Precio unitario / Stock disponible</label>
+                    <input type="text" id="precioStockInfo" disabled>
+                  </div>
+                  <div class="field">
+                    <label>Cantidad</label>
+                    <input type="number" id="cantidadVenta" min="1" value="1" oninput="validarStockDisponible()">
+                  </div>
+                </div>
+                <button class="btn btn-accent" onclick="agregarAlCarrito()">Agregar producto</button>
+              </div>
+            </div>
+
+            <div class="card" id="carritoCard" style="display:none;">
+              <h3 style="margin-top:0;color:var(--primary);">Carrito</h3>
+              <div id="carritoLines"></div>
+              <div class="total-line"><span>Total a pagar</span><span id="totalVenta">S/ 0.00</span></div>
+              <button class="btn btn-primary" style="margin-top:14px;" onclick="irPaso(2)">Continuar con el pago
+                →</button>
+            </div>
+          </div>
+
+          <!-- Paso 2: pago + comprobante -->
+          <div class="step-box" id="venta-step-2">
+            <div class="card">
+              <h3 style="margin-top:0;color:var(--primary);">2. Método de pago</h3>
+              <div class="pay-options">
+                <div class="pay-option" id="pay-efectivo" onclick="seleccionarPago('Efectivo')">💵 Efectivo</div>
+                <div class="pay-option" id="pay-yape" onclick="seleccionarPago('Yape')">📱 Yape</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 style="margin-top:0;color:var(--primary);">3. Tipo de comprobante</h3>
+              <div class="pay-options">
+                <div class="pay-option" id="cmp-boleta" onclick="seleccionarComprobante('Boleta')">🧾 Boleta</div>
+                <div class="pay-option" id="cmp-factura" onclick="seleccionarComprobante('Factura')">📄 Factura</div>
+              </div>
+
+              <div id="datosClienteBox" style="display:none;margin-top:16px;">
+                <div class="grid2">
+                  <div class="field">
+                    <label>RUC</label>
+                    <input type="text" id="clienteRuc" placeholder="20123456789">
+                  </div>
+                  <div class="field">
+                    <label>Razón social</label>
+                    <input type="text" id="clienteRazon" placeholder="Razón social del cliente">
+                  </div>
+                </div>
+                <button class="btn btn-outline small-btn" onclick="validarDatosCliente()">Validar datos del
+                  cliente</button>
+                <div id="clienteValidado" style="display:none;color:var(--green);font-size:13px;margin-top:6px;">✓ Datos
+                  validados correctamente</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-outline" onclick="irPaso(1)">← Volver</button>
+              <button class="btn btn-green" onclick="confirmarTransaccion()">Confirmar transacción</button>
+            </div>
+          </div>
+
+          <!-- Paso 3: comprobante final -->
+          <div class="step-box" id="venta-step-3">
+            <div class="card comprobante" id="comprobanteBox"></div>
+            <div style="display:flex;gap:10px;margin-top:14px;">
+              <button class="btn btn-accent" onclick="window.print()">🖨 Imprimir comprobante</button>
+              <button class="btn btn-primary" onclick="nuevaVentaReset()">+ Registrar otra venta</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRODUCTOS -->
+        <div class="page" id="page-productos">
+          <div class="page-title">Productos</div>
+          <div class="page-desc">Gestión de inventario del establo</div>
+
+          <div class="card">
+            <h3 style="margin-top:0;color:var(--primary);" id="prodFormTitle">Agregar producto</h3>
+            <input type="hidden" id="prodEditId">
+            <div class="grid3">
+              <div class="field"><label>Nombre</label><input type="text" id="prodNombre"></div>
+              <div class="field"><label>Precio (S/)</label><input type="number" step="0.01" id="prodPrecio"></div>
+              <div class="field"><label>Stock</label><input type="number" id="prodStock"></div>
+            </div>
+            <button class="btn btn-accent" onclick="guardarProducto()">Guardar producto</button>
+            <button class="btn btn-outline" id="cancelEditBtn" style="display:none;"
+              onclick="cancelarEdicionProducto()">Cancelar edición</button>
+          </div>
+
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Precio</th>
+                  <th>Stock</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="productosBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PRODUCCION (PANT-06) -->
+        <div class="page" id="page-produccion">
+          <div class="page-title">Registrar Producción</div>
+          <div class="page-desc">Transformación de materia prima e insumos a productos finales</div>
+
+          <div class="card">
+            <h3 style="margin-top:0;color:var(--primary);">1. Producto a Elaborar</h3>
+            <div class="grid2">
+              <div class="field">
+                <label>Seleccionar Producto</label>
+                <select id="prodElaborar">
+                  <option value="1">Yogurt Natural 1L</option>
+                  <option value="2">Yogurt de Fresa 1L</option>
+                  <option value="3">Yogurt de Durazno 1L</option>
+                  <option value="4">Yogurt Griego 500ml</option>
+                  <option value="5">Queso Fresco 1kg</option>
+                  <option value="6">Jugo Surtido (Jarra)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Cantidad Esperada (Teórica)</label>
+                <input type="number" id="prodEsperada" placeholder="Ej: 50" min="1">
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top:0;color:var(--primary);">2. Insumos Utilizados</h3>
+            <div class="grid3">
+              <div class="field">
+                <label>Leche de vaca (Litros)</label>
+                <input type="number" id="insumoLeche" placeholder="Ej: 50">
+              </div>
+              <div class="field">
+                <label>Fruta fresca (Kg)</label>
+                <input type="number" id="insumoFruta" placeholder="Ej: 5">
+              </div>
+              <div class="field">
+                <label>Azúcar / Endulzante (Kg)</label>
+                <input type="number" id="insumoAzucar" placeholder="Ej: 2">
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top:0;color:var(--primary);">3. Rendimiento Final</h3>
+            <div class="grid2">
+              <div class="field">
+                <label>Cantidad Real Producida</label>
+                <input type="number" id="prodReal" placeholder="Ej: 48" min="1">
+              </div>
+              <div class="field" style="display:flex; align-items:flex-end;">
+                <button class="btn btn-primary" style="width:100%; margin-bottom: 2px;"
+                  onclick="registrarProduccion()">Guardar Lote y Calcular Merma</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLIENTES -->
+        <div class="page" id="page-clientes">
+          <div class="page-title">Clientes registrados</div>
+          <div class="page-desc">Clientes con datos de facturación (RUC validado)</div>
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>RUC</th>
+                  <th>Razón social</th>
+                  <th>Fecha de registro</th>
+                </tr>
+              </thead>
+              <tbody id="clientesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- HISTORIAL VENTAS -->
+        <div class="page" id="page-ventas">
+          <div class="page-title">Historial de ventas</div>
+          <div class="page-desc">Todas las transacciones registradas</div>
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>N°</th>
+                  <th>Fecha</th>
+                  <th>Comprobante</th>
+                  <th>Cliente</th>
+                  <th>Pago</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="ventasBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- USUARIOS (solo admin) -->
+        <div class="page" id="page-usuarios">
+          <div class="page-title">Usuarios del sistema</div>
+          <div class="page-desc">Solo visible para el rol Administrador</div>
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>admin</td>
+                  <td><span class="badge badge-green">Administrador</span></td>
+                </tr>
+                <tr>
+                  <td>vendedor</td>
+                  <td><span class="badge badge-gray">Vendedor</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+    </div>
+    <footer class="app-footer">Sistema del Establo del Yogurt — Proyecto académico</footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Arquitectura SOLID: se cargan en orden de dependencia
+       contratos -> entidades -> infraestructura -> servicios -> UI -->
+  <script src="js/core/interfaces.js"></script>
+  <script src="js/core/entities.js"></script>
+  <script src="js/infrastructure/LocalStorageRepository.js"></script>
+  <script src="js/infrastructure/ToastNotifier.js"></script>
+  <script src="js/infrastructure/InMemoryAuthService.js"></script>
+  <script src="js/services/AuthService.js"></script>
+  <script src="js/services/ProductoService.js"></script>
+  <script src="js/services/ClienteService.js"></script>
+  <script src="js/services/VentaService.js"></script>
+  <script src="js/services/DashboardService.js"></script>
+  <script src="js/services/ProduccionService.js"></script>
+  <script src="js/ui/views.js"></script>
+  <script src="js/ui/app.js"></script>
+</body>
+
+</html>
